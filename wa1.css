@@ -14,20 +14,25 @@ body {
 	/* border: 1px solid; */
 }
 
+#output-header h1,
 #output-header h4 {
 	display: inline;
 	float: left;
 }
 
+#output-header span.label,
 #output-header span.label-valuation {
 	float: left;
 	margin-right: 2px;
 }
 
+#output-header span.data,
 #output-header span.data-valuation {
 	float: right;
 }
 
+#output-header span.label,
+#output-header span.data,
 #output-header span.label-valuation,
 #output-header span.data-valuation {
 	font-size: 1.25em;
@@ -99,7 +104,7 @@ body {
 #valuation span.data,
 #valuation span.data-valuation {
 	float: right;
-	color: royalblue;
+	color: darkslateblue;
 	margin-left: 2px;
 }
 

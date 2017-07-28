@@ -38,6 +38,9 @@ class MyHTMLParser(HTMLParser,object):
                 if a == 'class':
                     if v in ('companyName','tickerName','exchangeName'):
                         self.data_item = v
+                elif a == 'id':
+                    if v in ('quote_val'):
+                        self.data_item = v
         if self.flag:
             pass
             #print("start tag:", tag)
@@ -100,7 +103,7 @@ class MyHTMLParser(HTMLParser,object):
             m = re.search('USD[ a-zA-Z]+',data)
             self.fin_data[self.section]['Data Unit'] = m.group(0)
             self.data_item = 'Year'
-        elif self.data_item in ('companyName','tickerName','exchangeName'):
+        elif self.data_item in ('companyName','tickerName','exchangeName','quote_val'):
             self.fin_data['header'][self.data_item] = data
             self.data_item = ''
         elif data in ['Sales/Revenue', 'Depreciation & Amortization Expense',\
@@ -111,7 +114,7 @@ class MyHTMLParser(HTMLParser,object):
                 'ST Debt & Current Portion LT Debt',\
                 'Long-Term Debt',\
                 'Total Shareholders\' Equity',\
-                'Net Operating Cash Flow','Capital Expenditures']\
+                'Net Operating Cash Flow','Capital Expenditures','Cash Dividends Paid - Total']\
                   or self.tseF or self.cshF or self.depF or self.stdF:
             self.flag = True
             self.data_item = data

@@ -72,16 +72,28 @@ function processData(reqdata) {
 	var cash = 0, ltInvCash = 0, stDebt = 0, ltDebt = 0, ltNoteR = 0;
 	var equity = 0;
 	/* cf-st vars */
-	var ocf = 0, capex = 0;
-	var intcov = 0;
+	var ocf = 0, capex = 0, divd = 0;
+	var intcov = 0, divd2fcf = 0;
 
 	for (var key in data) {
 		//alert(key+data[key]);
 		if (key == "header") {
 			df = document.getElementById("output-header");
 			if (df.childElementCount == 0) {
+			        /* HeaderLine #1 */
 				dfc1 = document.createElement("h1");
-				df.appendChild(dfc1);
+				df.appendChild(dfc1);				
+
+                                dfc = document.createElement("span");
+				dfc.setAttribute("class","label");
+				dfc.innerHTML = "Quote";
+				df.appendChild(dfc);
+				dfc = document.createElement("span");
+				dfc.setAttribute("class","data");
+				dfc.setAttribute("id","quote_val");
+				df.appendChild(dfc);
+				
+				/* HeaderLine #2 */
 				dfc2 = document.createElement("h4");
 				df.appendChild(dfc2);
 
@@ -105,6 +117,10 @@ function processData(reqdata) {
 					dfc2.innerHTML = data[key][item];
 				else if (item == "exchangeName")
 					dfc2.innerHTML += " "+ data[key][item];
+				else if (item == "quote_val") {
+				        dfc = document.getElementById(item);
+					dfc.innerHTML = data[key][item];
+				}
 			}
 		/* header elements done */
 		} else if ((key == "income-statement")
@@ -209,6 +225,8 @@ function processData(reqdata) {
 					   ocf = +val.replace(/[,()]/g,"");
 					else if (item == "Capital Expenditures")
 					   capex = +val.replace(/[,()]/g,"");
+					else if (item == "Cash Dividends Paid - Total")
+					   divd = +val.replace(/[,()]/g,"");  
 				}
 			}
 			
@@ -220,7 +238,7 @@ function processData(reqdata) {
 		        else if (key == "balance-sheet")
 		           labelArr =  ["period","Data Unit","Year","Cash &amp; Short Term Investments","Other Long-Term Investments","Long-Term Note Receivable","Intangible Assets","ST Debt &amp; Current Portion LT Debt","Long-Term Debt","Total Shareholders' Equity"];
 		        else if (key == "cash-flow")
-		           labelArr =  ["period","Data Unit","Year","Net Operating Cash Flow","Capital Expenditures"];
+		           labelArr =  ["period","Data Unit","Year","Net Operating Cash Flow","Capital Expenditures","Cash Dividends Paid - Total"];
 		        else
 		           labelArr = "";   
 		        
@@ -275,6 +293,7 @@ function processData(reqdata) {
 
 	ocf *= ucf_cf;
 	capex *= ucf_cf;
+	divd *= ucf_cf;
 	
 	sales_ps = sales/dilShares;
 	oe_ps = (ebit != 0) ? (ebit/dilShares) : ((pretaxInc+intExp)/dilShares);
@@ -286,8 +305,10 @@ function processData(reqdata) {
 	equity_ps = equity/dilShares;
 	taxRate = incTax/pretaxInc;
 	exc_eqcash_ps = calc_excess_eqcash();
-	intcov = ((ebit !=0) ? ebit : (pretaxInc+intExp))/intExp;
 	dcr = totdebt_ps/(totdebt_ps+Math.max(equity_ps,0));
+	intcov = ((ebit !=0) ? ebit : (pretaxInc+intExp))/intExp;
+	divd2fcf = divd/(ocf-capex);
+	
 
 	/* display calculations */
 	var i = 0, arr, val_ps = 0;
@@ -372,7 +393,7 @@ function processData(reqdata) {
 	dfc = df.getElementsByTagName("div")[i++];
 	arr = dfc.getElementsByTagName("span");
 	arr[0].innerHTML = "Debt/Capital (%)";
-	arr[1].innerHTML = 100*dcr.toFixed(2);
+	arr[1].innerHTML = (100*dcr).toFixed(0);
 	
 	/* Interest coverage */
 	if (crElemF) crDisplayRow("derived");
@@ -381,9 +402,24 @@ function processData(reqdata) {
 	arr[0].innerHTML = "Interest Coverage";
 	arr[1].innerHTML = intcov.toFixed(2);
 	
+	/* ROC */
+	if (crElemF) crDisplayRow("derived");
+	dfc = df.getElementsByTagName("div")[i++];
+	arr = dfc.getElementsByTagName("span");
+	arr[0].innerHTML = "ROC (%)";
+	arr[1].setAttribute("id","roc");
+	/* Calc of ROC is done after earn_disc is defined */
+	
+	/* Dividend/FCF */
+	if (crElemF) crDisplayRow("derived");
+	dfc = df.getElementsByTagName("div")[i++];
+	arr = dfc.getElementsByTagName("span");
+	arr[0].innerHTML = "Dividend/FCF (%)";
+	arr[1].innerHTML = (100*divd2fcf).toFixed(0);
+	
 	/* display valuations */
 	i = 0; df = document.getElementById("valuation");
-	/* EB value display */
+
 	/* Earnings discount */
 	if (crElemF) crDisplayRow("valuation");
 	dfc = df.getElementsByTagName("div")[i++];
@@ -394,11 +430,11 @@ function processData(reqdata) {
 		dfc.setAttribute("type", "text");
 		dfc.setAttribute("class","input");
 		dfc.setAttribute("id","earn-disc");
-		dfc.size = "5";
-		dfc.defaultValue = "0";
+		dfc.size = "5";		
 		arr[1].appendChild(dfc);
 	}
 	dfc = document.getElementById("earn-disc");
+	dfc.defaultValue = (dcr < 0.33)? ((intcov > 5)? 0 : 5) : ((intcov > 5)? 5 : 10);
 	dfc.value = dfc.defaultValue;
 
 	/* Cash held abroad */
@@ -425,19 +461,6 @@ function processData(reqdata) {
 	dfc = document.getElementById("cash-abroad");
 	dfc.value = dfc.defaultValue;
 
-	/* EB Value */
-	if (crElemF) crDisplayRow("valuation");
-	dfc = df.getElementsByTagName("div")[i++];
-	arr = dfc.getElementsByTagName("span");
-	if (crElemF) {
-		arr[0].innerHTML = "EB Value p.s.";
-		arr[0].setAttribute("class","label-valuation");
-		arr[1].setAttribute("id","ebval");
-		arr[1].setAttribute("class","data-valuation");
-	}
-	val_ps = calcEBV();
-	arr[1].innerHTML = val_ps.toFixed(2);
-
 	/* DCF value display */
 	/* OCF Growth Rate - Y1-Y5 */
 	if (crElemF) crDisplayRow("valuation");
@@ -450,7 +473,7 @@ function processData(reqdata) {
 		dfc.setAttribute("class","input");
 		dfc.setAttribute("id","GR5y");
 		dfc.size = "5";
-		dfc.defaultValue = "3";
+		dfc.defaultValue = "2";
 		arr[1].appendChild(dfc);
 	}
 	dfc = document.getElementById("GR5y");
@@ -467,7 +490,7 @@ function processData(reqdata) {
 		dfc.setAttribute("class","input");
 		dfc.setAttribute("id","GR15y");
 		dfc.size = "5";
-		dfc.defaultValue = "1.6";
+		dfc.defaultValue = "1.2";
 		arr[1].appendChild(dfc);
 	}
 	dfc = document.getElementById("GR15y");
@@ -487,8 +510,21 @@ function processData(reqdata) {
 		arr[1].appendChild(dfc);
 	}
 	dfc = document.getElementById("disc-rate");
-	dfc.defaultValue = (intcov > 9)? 10 : ((intcov > 4)? 12 : 15);
+	dfc.defaultValue = (dcr < 0.33)? ((intcov > 8)? 10 : ((intcov > 5)? 12 : 15)) : ((intcov > 5)? 12 : 15);
 	dfc.value = dfc.defaultValue;
+	
+	/* EB Value */
+	if (crElemF) crDisplayRow("valuation");
+	dfc = df.getElementsByTagName("div")[i++];
+	arr = dfc.getElementsByTagName("span");
+	if (crElemF) {
+		arr[0].innerHTML = "EB Value p.s.";
+		arr[0].setAttribute("class","label-valuation");
+		arr[1].setAttribute("id","ebval");
+		arr[1].setAttribute("class","data-valuation");
+	}
+	val_ps = calcEBV();
+	arr[1].innerHTML = val_ps.toFixed(2);
 
 	/* DCF Value */
 	if (crElemF) crDisplayRow("valuation");
@@ -527,25 +563,26 @@ function processData(reqdata) {
 		dfc.setAttribute("type", "button");
 		dfc.value = "Calculate";
 		dfc.onclick = function () {
-			var val_ps = calcEBV();
-			var dfc = document.getElementById("ebval");
-			dfc.innerHTML = val_ps.toFixed(2);
+		        var dfc = document.getElementById("roc");
+	                dfc.innerHTML = (100*calcROC()).toFixed(1);
+		
+			dfc = document.getElementById("ebval");
+			dfc.innerHTML = calcEBV().toFixed(2);
 
-			val_ps = calcDCFV();
 			dfc = document.getElementById("dcfval");
-			dfc.innerHTML = val_ps.toFixed(2);
+			dfc.innerHTML = calcDCFV().toFixed(2);
 
-			val_ps = calcSSV();
 			dfc = document.getElementById("ssval");
-			dfc.innerHTML = val_ps.toFixed(2);
+			dfc.innerHTML = calcSSV().toFixed(2);
 
-			val_ps = calcFV();
 			dfc = document.getElementById("fval");
-			dfc.innerHTML = val_ps.toFixed(2);
+			dfc.innerHTML = calcFV().toFixed(2);
 		}
 		arr[1].appendChild(dfc);
 	}
 
+        dfc = document.getElementById("roc");
+	dfc.innerHTML = (100*calcROC()).toFixed(1);
 	dfc = document.getElementById("fval");
 	dfc.innerHTML = calcFV().toFixed(2);
 }
@@ -565,6 +602,14 @@ function crDisplayRow(id) {
 
 function calc_excess_eqcash() {
 	return Math.max(Math.min((eff_cash_ps - 0.1*sales_ps),equity_ps),0);
+}
+
+function calcROC() {
+	var df = document.getElementById("earn-disc");
+	var earn_disc = +df.value/100;
+	var tc_ps = totdebt_ps+Math.max(equity_ps,0);
+
+	return (((1-earn_disc)*oe_ps)*(1-taxRate)/tc_ps);
 }
 
 function calcEBV() {
@@ -614,7 +659,7 @@ function calcFV() {
 	var dfc2 = document.getElementById("dcfval");
 	var dfc3 = document.getElementById("ssval");
 
-	return ((+dfc1.innerHTML + (+dfc2.innerHTML + +dfc3.innerHTML)/2)/2); 
+	return ((+dfc2.innerHTML + (+dfc1.innerHTML + (+dfc3.innerHTML))/2)/2); 
 }
 
 /* not used */
